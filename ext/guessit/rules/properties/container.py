@@ -8,6 +8,7 @@ from rebulk.remodule import re
 from rebulk import Rebulk
 
 from ..common import seps
+from ..common.pattern import is_disabled
 from ..common.validators import seps_surround
 from ...reutils import build_or_pattern
 
@@ -18,12 +19,13 @@ def container():
     :return: Created Rebulk object
     :rtype: Rebulk
     """
-    rebulk = Rebulk().regex_defaults(flags=re.IGNORECASE).string_defaults(ignore_case=True)
+    rebulk = Rebulk(disabled=lambda context: is_disabled(context, 'container'))
+    rebulk = rebulk.regex_defaults(flags=re.IGNORECASE).string_defaults(ignore_case=True)
     rebulk.defaults(name='container',
                     formatter=lambda value: value.strip(seps),
                     tags=['extension'],
                     conflict_solver=lambda match, other: other
-                    if other.name in ['format', 'video_codec'] or
+                    if other.name in ('source', 'video_codec') or
                     other.name == 'container' and 'extension' not in other.tags
                     else '__default__')
 
@@ -46,11 +48,11 @@ def container():
                     validator=seps_surround,
                     formatter=lambda s: s.lower(),
                     conflict_solver=lambda match, other: match
-                    if other.name in ['format',
-                                      'video_codec'] or other.name == 'container' and 'extension' in other.tags
+                    if other.name in ('source',
+                                      'video_codec') or other.name == 'container' and 'extension' in other.tags
                     else '__default__')
 
-    rebulk.string(*[sub for sub in subtitles if sub not in ['sub']], tags=['subtitle'])
+    rebulk.string(*[sub for sub in subtitles if sub not in ('sub', 'ass')], tags=['subtitle'])
     rebulk.string(*videos, tags=['video'])
     rebulk.string(*torrent, tags=['torrent'])
     rebulk.string(*nzb, tags=['nzb'])

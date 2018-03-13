@@ -6,11 +6,13 @@ release_group property
 import copy
 
 from rebulk import Rebulk, Rule, AppendMatch, RemoveMatch
+from rebulk.match import Match
 
 from ..common import seps
 from ..common.expected import build_expected_function
 from ..common.comparators import marker_sorted
 from ..common.formatters import cleanup
+from ..common.pattern import is_disabled
 from ..common.validators import int_coercable, seps_surround
 from ..properties.title import TitleFromPosition
 
@@ -21,7 +23,7 @@ def release_group():
     :return: Created Rebulk object
     :rtype: Rebulk
     """
-    rebulk = Rebulk()
+    rebulk = Rebulk(disabled=lambda context: is_disabled(context, 'release_group'))
 
     expected_group = build_expected_function('expected_group')
 
@@ -30,7 +32,7 @@ def release_group():
                       conflict_solver=lambda match, other: other,
                       disabled=lambda context: not context.get('expected_group'))
 
-    return rebulk.rules(SceneReleaseGroup, AnimeReleaseGroup)
+    return rebulk.rules(DashSeparatedReleaseGroup, SceneReleaseGroup, AnimeReleaseGroup)
 
 
 forbidden_groupnames = ['rip', 'by', 'for', 'par', 'pour', 'bonus']
@@ -61,11 +63,123 @@ def clean_groupname(string):
     return string
 
 
-_scene_previous_names = ['video_codec', 'format', 'video_api', 'audio_codec', 'audio_profile', 'video_profile',
+_scene_previous_names = ('video_codec', 'source', 'video_api', 'audio_codec', 'audio_profile', 'video_profile',
                          'audio_channels', 'screen_size', 'other', 'container', 'language', 'subtitle_language',
-                         'subtitle_language.suffix', 'subtitle_language.prefix', 'language.suffix']
+                         'subtitle_language.suffix', 'subtitle_language.prefix', 'language.suffix')
 
-_scene_previous_tags = ['release-group-prefix']
+_scene_previous_tags = ('release-group-prefix', )
+
+
+class DashSeparatedReleaseGroup(Rule):
+    """
+    Detect dash separated release groups that might appear at the end or at the beginning of a release name.
+
+    Series.S01E02.Pilot.DVDRip.x264-CS.mkv
+        release_group: CS
+    abc-the.title.name.1983.1080p.bluray.x264.mkv
+        release_group: abc
+
+    At the end: Release groups should be dash-separated and shouldn't contain spaces nor
+    appear in a group with other matches. The preceding matches should be separated by dot.
+    If a release group is found, the conflicting matches are removed.
+
+    At the beginning: Release groups should be dash-separated and shouldn't contain spaces nor appear in a group.
+    It should be followed by a hole with dot-separated words.
+    Detection only happens if no matches exist at the beginning.
+    """
+    consequence = [RemoveMatch, AppendMatch]
+
+    @classmethod
+    def is_valid(cls, matches, candidate, start, end, at_end):  # pylint:disable=inconsistent-return-statements
+        """
+        Whether a candidate is a valid release group.
+        """
+        if not at_end:
+            if len(candidate.value) <= 1:
+                return False
+
+            if matches.markers.at_match(candidate, predicate=lambda m: m.name == 'group'):
+                return False
+
+            first_hole = matches.holes(candidate.end, end, predicate=lambda m: m.start == candidate.end, index=0)
+            if not first_hole:
+                return False
+
+            raw_value = first_hole.raw
+            return raw_value[0] == '-' and '-' not in raw_value[1:] and '.' in raw_value and ' ' not in raw_value
+
+        group = matches.markers.at_match(candidate, predicate=lambda m: m.name == 'group', index=0)
+        if group and matches.at_match(group, predicate=lambda m: not m.private and m.span != candidate.span):
+            return False
+
+        count = 0
+        match = candidate
+        while match:
+            current = matches.range(start, match.start, index=-1, predicate=lambda m: not m.private)
+            if not current:
+                break
+
+            separator = match.input_string[current.end:match.start]
+            if not separator and match.raw[0] == '-':
+                separator = '-'
+
+            match = current
+
+            if count == 0:
+                if separator != '-':
+                    break
+
+                count += 1
+                continue
+
+            if separator == '.':
+                return True
+
+    def detect(self, matches, start, end, at_end):  # pylint:disable=inconsistent-return-statements
+        """
+        Detect release group at the end or at the beginning of a filepart.
+        """
+        candidate = None
+        if at_end:
+            container = matches.ending(end, lambda m: m.name == 'container', index=0)
+            if container:
+                end = container.start
+
+            candidate = matches.ending(end, index=0, predicate=(
+                lambda m: not m.private and not (
+                    m.name == 'other' and 'not-a-release-group' in m.tags
+                ) and '-' not in m.raw and m.raw.strip() == m.raw))
+
+        if not candidate:
+            if at_end:
+                candidate = matches.holes(start, end, seps=seps, index=-1,
+                                          predicate=lambda m: m.end == end and m.raw.strip(seps) and m.raw[0] == '-')
+            else:
+                candidate = matches.holes(start, end, seps=seps, index=0,
+                                          predicate=lambda m: m.start == start and m.raw.strip(seps))
+
+        if candidate and self.is_valid(matches, candidate, start, end, at_end):
+            return candidate
+
+    def when(self, matches, context):  # pylint:disable=inconsistent-return-statements
+        if matches.named('release_group'):
+            return
+
+        to_remove = []
+        to_append = []
+        for filepart in matches.markers.named('path'):
+            candidate = self.detect(matches, filepart.start, filepart.end, True)
+            if candidate:
+                to_remove.extend(matches.at_match(candidate))
+            else:
+                candidate = self.detect(matches, filepart.start, filepart.end, False)
+
+            if candidate:
+                releasegroup = Match(candidate.start, candidate.end, name='release_group', formatter=clean_groupname,
+                                     input_string=candidate.input_string)
+
+                to_append.append(releasegroup)
+                return to_remove, to_append
 
 
 class SceneReleaseGroup(Rule):
@@ -79,7 +193,7 @@ class SceneReleaseGroup(Rule):
 
     properties = {'release_group': [None]}
 
-    def when(self, matches, context):
+    def when(self, matches, context):  # pylint:disable=too-many-locals
         # If a release_group is found before, ignore this kind of release_group rule.
 
         ret = []
@@ -87,6 +201,8 @@ class SceneReleaseGroup(Rule):
         for filepart in marker_sorted(matches.markers.named('path'), matches):
             # pylint:disable=cell-var-from-loop
             start, end = filepart.span
+            if matches.named('release_group', predicate=lambda m: m.start >= start and m.end <= end):
+                continue
 
             titles = matches.named('title', predicate=lambda m: m.start >= start and m.end <= end)
 
@@ -165,11 +281,11 @@ class AnimeReleaseGroup(Rule):
 
         # If a release_group is found before, ignore this kind of release_group rule.
         if matches.named('release_group'):
-            return
+            return to_remove, to_append
 
         if not matches.named('episode') and not matches.named('season') and matches.named('release_group'):
             # This doesn't seems to be an anime, and we already found another release_group.
-            return
+            return to_remove, to_append
 
         for filepart in marker_sorted(matches.markers.named('path'), matches):
 

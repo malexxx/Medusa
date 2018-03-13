@@ -426,8 +426,8 @@ class CreateAliasWithCountryOrYear(Rule):
             "country": "UNITED STATES",
             "season": 3,
             "screen_size": "720p",
-            "format": "BluRay",
-            "video_codec": "h264",
+            "source": "Blu-Ray",
+            "video_codec": "H.264",
             "release_group": "SuperGroup",
             "type": "episode"
         }
@@ -440,8 +440,8 @@ class CreateAliasWithCountryOrYear(Rule):
             "country": "UNITED STATES",
             "season": 3,
             "screen_size": "720p",
-            "format": "BluRay",
-            "video_codec": "h264",
+            "source": "Blu-Ray",
+            "video_codec": "H.264",
             "release_group": "SuperGroup",
             "type": "episode"
         }
@@ -506,10 +506,10 @@ class FixTvChaosUkWorkaround(Rule):
             "title": "Show Name",
             "season": 1,
             "video_codec": [
-                "XviD",
-                "h264"
+                "Xvid",
+                "H.264"
             ],
-            "format": "HDTV",
+            "source": "HDTV",
             "type": "episode"
         }
 
@@ -518,8 +518,8 @@ class FixTvChaosUkWorkaround(Rule):
         GuessIt found: {
             "title": "Show Name",
             "season": 1,
-            "video_codec": "XviD",
-            "format": "HDTV",
+            "video_codec": "Xvid",
+            "source": "HDTV",
             "type": "episode"
         }
     """
@@ -540,21 +540,21 @@ class FixTvChaosUkWorkaround(Rule):
 
         fileparts = matches.markers.named('path')
         for filepart in marker_sorted(fileparts, matches):
-            m_x264 = matches.ending(filepart.end, predicate=lambda match: match.name == 'video_codec' and match.value == 'h264', index=0)
+            m_x264 = matches.ending(filepart.end, predicate=lambda match: match.name == 'video_codec' and match.value == 'H.264', index=0)
             if not m_x264:
                 continue
 
-            m_hdtv = matches.previous(m_x264, predicate=lambda match: match.name == 'format' and match.value == 'HDTV', index=0)
+            m_hdtv = matches.previous(m_x264, predicate=lambda match: match.name == 'source' and match.value == 'HDTV', index=0)
             if not m_hdtv:
                 continue
 
             video_codecs = matches.range(filepart.start, filepart.end, lambda match: match.name == 'video_codec')
-            formats = matches.range(filepart.start, filepart.end, predicate=lambda match: match.name == 'format')
+            sources = matches.range(filepart.start, filepart.end, predicate=lambda match: match.name == 'source')
             if len(video_codecs) > 1:
                 to_remove.append(m_x264)
-                if len(formats) <= 1:
+                if len(sources) <= 1:
                     m_hdtv.tags.append('tvchaosuk')
-            if len(formats) > 1:
+            if len(sources) > 1:
                 to_remove.append(m_hdtv)
                 if len(video_codecs) <= 1:
                     m_x264.tags.append('tvchaosuk')
@@ -873,8 +873,8 @@ class PartsAsEpisodeNumbers(Rule):
             "title": "Show Name",
             "part": 3,
             "screen_size": "720p",
-            "format": "HDTV",
-            "video_codec": "h264",
+            "source": "HDTV",
+            "video_codec": "H.264",
             "release_group": "Group",
             "type": "episode"
         }
@@ -885,8 +885,8 @@ class PartsAsEpisodeNumbers(Rule):
             "title": "Show Name",
             "episode": 3,
             "screen_size": "720p",
-            "format": "HDTV",
-            "video_codec": "h264",
+            "source": "HDTV",
+            "video_codec": "H.264",
             "release_group": "Group",
             "type": "episode"
         }
@@ -949,8 +949,8 @@ class FixMultipleReleaseGroups(Rule):
             return to_remove
 
 
-class FixMultipleFormats(Rule):
-    """Fix multiple formats.
+class FixMultipleSources(Rule):
+    """Fix multiple sources.
 
     Related to guessit bug: https://github.com/guessit-io/guessit/issues/327
 
@@ -966,14 +966,14 @@ class FixMultipleFormats(Rule):
             "episode": 1,
             "episode_title": "eps2 0 unm4sk",
             "part": 1,
-            "format": [
+            "source": [
                 "Telecine",
                 "WEB-DL"
             ],
             "screen_size": "1080p",
             "audio_codec": "DolbyDigital",
             "audio_channels": "5.1",
-            "video_codec": "h264",
+            "video_codec": "H.264",
             "release_group": "GROUP",
             "type": "episode"
         }
@@ -987,11 +987,11 @@ class FixMultipleFormats(Rule):
             "episode": 1,
             "episode_title": "eps2 0 unm4sk",
             "part": 1,
-            "format": "WEB-DL",
+            "source": "WEB-DL",
             "screen_size": "1080p",
             "audio_codec": "DolbyDigital",
             "audio_channels": "5.1",
-            "video_codec": "h264",
+            "video_codec": "H.264",
             "release_group": "GROUP",
             "type": "episode"
         }
@@ -1011,22 +1011,22 @@ class FixMultipleFormats(Rule):
         """
         fileparts = matches.markers.named('path')
         for filepart in marker_sorted(fileparts, matches):
-            formats = matches.range(filepart.start, filepart.end, predicate=lambda match: match.name == 'format')
-            if len(formats) < 2:
+            sources = matches.range(filepart.start, filepart.end, predicate=lambda match: match.name == 'source')
+            if len(sources) < 2:
                 continue
 
-            for candidate in reversed(formats):
+            for candidate in reversed(sources):
                 previous = matches.previous(candidate, predicate=lambda match: match.name == 'screen_size')
                 next_range = matches.range(candidate.end, filepart.end,
                                            lambda match: match.name in ('audio_codec', 'video_codec', 'release_group'))
-                # If we have at least 3 matches near by, then discard the other formats
+                # If we have at least 3 matches near by, then discard the other sources
                 if len(previous) + len(next_range) > 1:
-                    invalid_formats = {f.value for f in formats[0:-1]}
-                    to_remove = matches.named('format', predicate=lambda m: m.value in invalid_formats)
+                    invalid_sources = {f.value for f in sources[0:-1]}
+                    to_remove = matches.named('source', predicate=lambda m: m.value in invalid_sources)
                     return to_remove
 
                 if matches.conflicting(candidate):
-                    to_remove = matches.named('format', predicate=lambda m: m.value in candidate.value)
+                    to_remove = matches.named('source', predicate=lambda m: m.value in candidate.value)
                     return to_remove
 
 
@@ -1043,8 +1043,8 @@ class CreateProperTags(Rule):
             "episode": 8,
             "other": "Proper",
             "proper_count": 2,
-            "format": "HDTV",
-            "video_codec": "h264",
+            "source": "HDTV",
+            "video_codec": "H.264",
             "release_group": "GROUP",
             "type": "episode"
         }
@@ -1058,8 +1058,8 @@ class CreateProperTags(Rule):
             "other": "Proper",
             "proper_count": 2,
             "proper_tag": ["REPACK", "PROPER"]
-            "format": "HDTV",
-            "video_codec": "h264",
+            "source": "HDTV",
+            "video_codec": "H.264",
             "release_group": "GROUP",
             "type": "episode"
         }
@@ -1141,7 +1141,7 @@ class AudioCodecStandardizer(Rule):
         return to_remove, to_append
 
 
-class FormatStandardizer(Rule):
+class SourceStandardizer(Rule):
     """DVB renamed to PDTV."""
 
     priority = POST_PROCESS
@@ -1158,11 +1158,11 @@ class FormatStandardizer(Rule):
         """
         to_remove = []
         to_append = []
-        for source in matches.named('format', predicate=lambda m: m.value in ('DVB', )):
-            new_format = copy.copy(source)
-            new_format.value = 'PDTV'
+        for source in matches.named('source', predicate=lambda m: m.value in ('DVB', )):
+            new_source = copy.copy(source)
+            new_source.value = 'PDTV'
             to_remove.append(source)
-            to_append.append(new_format)
+            to_append.append(new_source)
 
         return to_remove, to_append
 
@@ -1183,10 +1183,10 @@ class VideoEncoderRule(Rule):
         :return:
         """
         to_append = []
-        for video_codec in matches.named('video_codec', lambda m: m.value in ('h264', 'h265') and 'x26' in m.raw.lower()):
+        for video_codec in matches.named('video_codec', lambda m: m.value in ('H.264', 'H.265') and 'x26' in m.raw.lower()):
             encoder = copy.copy(video_codec)
             encoder.name = 'video_encoder'
-            encoder.value = encoder.value.replace('h', 'x')
+            encoder.value = encoder.value.replace('H.', 'x')
             to_append.append(encoder)
 
         return to_append
@@ -1208,7 +1208,7 @@ class AvoidMultipleValuesRule(Rule):
         :return:
         """
         to_remove = []
-        for name in ('episode_title', 'format', 'release_group', 'title'):
+        for name in ('episode_title', 'source', 'release_group', 'title'):
             values = matches.named(name)
             unique_values = {v.value for v in values}
             if len(unique_values) > 1:
@@ -1239,8 +1239,8 @@ class ReleaseGroupPostProcessor(Rule):
             "season": 2,
             "episode": 14,
             "screen_size": "1080p",
-            "format": "HDTV",
-            "video_codec": "h264",
+            "source": "HDTV",
+            "video_codec": "H.264",
             "release_group": "GROUP[TRASH]",
             "type": "episode"
         }
@@ -1253,8 +1253,8 @@ class ReleaseGroupPostProcessor(Rule):
             "season": 2,
             "episode": 14,
             "screen_size": "1080p",
-            "format": "HDTV",
-            "video_codec": "h264",
+            "source": "HDTV",
+            "video_codec": "H.264",
             "release_group": "GROUP",
             "type": "episode"
         }
@@ -1363,11 +1363,11 @@ def rules():
         CreateAliasWithAlternativeTitles,
         CreateAliasWithCountryOrYear,
         ReleaseGroupPostProcessor,
-        FixMultipleFormats,
+        FixMultipleSources,
         FixMultipleReleaseGroups,
         ScreenSizeStandardizer,
         AudioCodecStandardizer,
-        FormatStandardizer,
+        SourceStandardizer,
         VideoEncoderRule,
         CreateProperTags,
         AvoidMultipleValuesRule,

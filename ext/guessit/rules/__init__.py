@@ -10,7 +10,7 @@ from .markers.groups import groups
 
 from .properties.episodes import episodes
 from .properties.container import container
-from .properties.format import format_
+from .properties.source import source
 from .properties.video_codec import video_codec
 from .properties.audio_codec import audio_codec
 from .properties.screen_size import screen_size
@@ -24,6 +24,7 @@ from .properties.release_group import release_group
 from .properties.streaming_service import streaming_service
 from .properties.other import other
 from .properties.size import size
+from .properties.bit_rate import bit_rate
 from .properties.edition import edition
 from .properties.cds import cds
 from .properties.bonus import bonus
@@ -49,7 +50,7 @@ def rebulk_builder():
 
     rebulk.rebulk(episodes())
     rebulk.rebulk(container())
-    rebulk.rebulk(format_())
+    rebulk.rebulk(source())
     rebulk.rebulk(video_codec())
     rebulk.rebulk(audio_codec())
     rebulk.rebulk(screen_size())
@@ -63,6 +64,7 @@ def rebulk_builder():
     rebulk.rebulk(streaming_service())
     rebulk.rebulk(other())
     rebulk.rebulk(size())
+    rebulk.rebulk(bit_rate())
     rebulk.rebulk(edition())
     rebulk.rebulk(cds())
     rebulk.rebulk(bonus())
