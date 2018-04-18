@@ -96,7 +96,9 @@ const startVue = () => {
                     basic: 'Basic',
                     digest: 'Digest'
                 },
-                searchIntervals: '${json.dumps(app.PROPERS_SEARCH_INTERVAL)}'
+                searchIntervals: JSON.parse('${json.dumps(app.PROPERS_SEARCH_INTERVAL)}'),
+                propersIntervalLabels: JSON.parse('${json.dumps(app.PROPERS_INTERVAL_LABELS)}'),
+                propersInterval: '${app.CHECK_PROPERS_INTERVAL}'
             };
         },
         mounted() {
@@ -221,9 +223,7 @@ const startVue = () => {
                                         <span class="component-title">Check propers every:</span>
                                         <span class="component-desc">
                                             <select id="check_propers_interval" name="check_propers_interval" class="form-control input-sm">
-    % for curInterval in app.PROPERS_SEARCH_INTERVAL.keys():
-                                                <option value="${curInterval}" ${'selected="selected"' if app.CHECK_PROPERS_INTERVAL == curInterval else ''}>${app.PROPERS_INTERVAL_LABELS[curInterval]}</option>
-    % endfor
+                                                <option v-for="(interval, label) in searchIntervals" :v-model="propersInterval" :selected="propersInterval === internal">{{propersIntervalLabels[label]}}</option>
                                             </select>
                                         </span>
                                     </label>
