@@ -1,5 +1,6 @@
 <%inherit file="/layouts/main.mako"/>
 <%!
+    import json
     from medusa import app
     from medusa.clients import torrent
 %>
@@ -94,7 +95,8 @@ const startVue = () => {
                     none: 'None',
                     basic: 'Basic',
                     digest: 'Digest'
-                }
+                },
+                searchIntervals: '${json.dumps(app.PROPERS_SEARCH_INTERVAL)}'
             };
         },
         mounted() {
@@ -120,7 +122,7 @@ const startVue = () => {
 
                 this.torrent.testStatus = await data.text();
             },
-            async testNzbGet() {
+            async testNzbget() {
                 const { nzb } = this;
                 const { nzbget } = nzb;
                 const { host, username, password } = nzbget;
@@ -472,12 +474,12 @@ const startVue = () => {
                                 </label>
                             </div>
                         </div>
-                        <div v-show="nzb.method === 'sabnzd'" id="sabnzbd_settings">
+                        <div v-show="nzb.method === 'sabnzbd'" id="sabnzbd_settings">
                             <div class="field-pair">
                                 <label>
                                     <span class="component-title">SABnzbd server URL</span>
                                     <span class="component-desc">
-                                        <input v-model="nzb.sabnzd.host" type="text" id="sab_host" name="sab_host" class="form-control input-sm input350"/>
+                                        <input v-model="nzb.sabnzbd.host" type="text" id="sab_host" name="sab_host" class="form-control input-sm input350"/>
                                         <div class="clear-left"><p>URL to your SABnzbd server (e.g. http://localhost:8080/)</p></div>
                                     </span>
                                 </label>
@@ -486,7 +488,7 @@ const startVue = () => {
                                 <label>
                                     <span class="component-title">SABnzbd username</span>
                                     <span class="component-desc">
-                                        <input v-model="nzb.sabnzd.username" type="text" name="sab_username" id="sab_username" class="form-control input-sm input200" autocomplete="no" />
+                                        <input v-model="nzb.sabnzbd.username" type="text" name="sab_username" id="sab_username" class="form-control input-sm input200" autocomplete="no" />
                                         <p>(blank for none)</p>
                                     </span>
                                 </label>
@@ -495,7 +497,7 @@ const startVue = () => {
                                 <label>
                                     <span class="component-title">SABnzbd password</span>
                                     <span class="component-desc">
-                                        <input v-model="nzb.sabnzd.password" type="password" name="sab_password" id="sab_password" class="form-control input-sm input200" autocomplete="no"/>
+                                        <input v-model="nzb.sabnzbd.password" type="password" name="sab_password" id="sab_password" class="form-control input-sm input200" autocomplete="no"/>
                                         <p>(blank for none)</p>
                                     </span>
                                 </label>
@@ -504,7 +506,7 @@ const startVue = () => {
                                 <label>
                                     <span class="component-title">SABnzbd API key</span>
                                     <span class="component-desc">
-                                        <input v-model="nzb.sabnzd.apiKey" type="text" name="sab_apikey" id="sab_apikey" class="form-control input-sm input350"/>
+                                        <input v-model="nzb.sabnzbd.apiKey" type="text" name="sab_apikey" id="sab_apikey" class="form-control input-sm input350"/>
                                         <div class="clear-left"><p>locate at... SABnzbd Config -> General -> API Key</p></div>
                                     </span>
                                 </label>
@@ -651,7 +653,7 @@ const startVue = () => {
                                 </label>
                             </div>
                             <div class="testNotification" id="testNZBget_result">{{nzb.nzbget.testStatus}}</div>
-                                <input @click="testNZBget" class="btn" type="button" value="Test NZBget" id="testNZBget" class="btn test-button"/>
+                                <input @click="testNzbget" class="btn" type="button" value="Test NZBget" id="testNZBget" class="btn test-button"/>
                                 <input type="submit" class="btn config_submitter" value="Save Changes" /><br>
                             </div>
                         </div><!-- /content_use_nzbs //-->
